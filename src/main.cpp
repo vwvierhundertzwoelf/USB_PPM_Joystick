@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 /*
 Anschluss: 
   D+ auf D2
@@ -8,7 +10,7 @@ Anschluss:
 
 #include "UsbJoystick.h"
 
-#define CHANNELS 8 
+#define CHANNELS 6 
 #define READ_PIN 8
 
 unsigned short a2dValue;
@@ -26,11 +28,11 @@ boolean lastPinState = LOW;
 int numCurPulse=-1;
 
 void setup() {
-  pinMode (READ_PIN, INPUT);
+  pinMode (READ_PIN, INPUT_PULLUP);
   usbDeviceConnect();
   lastPinState = digitalRead(READ_PIN);
 }
-
+void calculateReport();
 void loop () {
   UsbJoystick.refresh(); // Let the AVRUSB driver do some houskeeping
   calculateReport(); // Jump to our port read routine that orders the values
@@ -38,53 +40,47 @@ void loop () {
 }
 
 void calculateReport() {  //The values read from the analog ports have to be ordered in a way the HID protocol wants it; a bit confusing.
-  boolean curPinState = digitalRead(READ_PIN);
 
-  // slope change
-  if (curPinState != lastPinState) {
-    unsigned long pulseLength;
-    // rising
-    if (curPinState==HIGH && lastPinState==LOW) {
-      pulseUpTime=micros();
-      pulseLength=pulseUpTime-pulseLowTime;
+  if (pulseIn(8, HIGH, 50000) > 3000) //If pulse > 3000 useconds, continues
+  {
+    for (int i = 0; i <= CHANNELS - 1; i++) //Read the pulses of the channels
+    {
+      channel[i] = pulseIn(8, HIGH,3000);
     }
-    else { // falling: curPinState==LOW && lastPinState==HIGH
-      pulseLowTime=micros();
-      pulseLength=pulseLowTime-pulseUpTime;
-    }
-    // rising und pause > 3000µs
-    if (pulseLength>3000 && curPinState==HIGH) {
-      numCurPulse=0;
-    }
-    else if (curPinState == HIGH && numCurPulse < CHANNELS && pulseLength<2000) {
-      unsigned int newValue = constrain(pulseLength-450,1,1023);
-      if (abs((int)newValue-(int)channel[numCurPulse])<300 || channel[numCurPulse]==0) {
-        channel[numCurPulse] = newValue;
+    for (int i = 0; i <= CHANNELS - 1; i++) //Average the pulses
+    {
+      if ((channel[i] > 2000) || (channel[i] < 100)) //If channel > max range, chage the value to the last pulse
+      {
+        channel[i] = lastReadChannel[i];
       }
-      numCurPulse += 1;
+
+      else
+      {
+        channel[i] = (lastReadChannel[i] + channel[i]) / 2; //Average the last pulse eith the current pulse
+                                             //increment counter
+      }
     }
   }
-  lastPinState = curPinState;
   
-  a2dValue = channel[1];
+  a2dValue = channel[0];
   high = a2dValue >> 8;
   low = a2dValue & 255;
   report[0] = low;
   temp = high;
 
-  a2dValue = channel[0];
+  a2dValue = channel[1];
   high = a2dValue >> 6;
   low = a2dValue & 63;
   report[1] = (low << 2) + temp;
   temp = high;
 
-  a2dValue =channel[2];
+  a2dValue =channel[3];
   high = a2dValue >> 4;
   low = a2dValue & 15;
   report[2] = (low << 4) + temp;
   temp = high;
 
-  a2dValue = channel[3];
+  a2dValue = channel[2];
   high = a2dValue >> 2;
   low = a2dValue & 3;
   report[3] = (low << 6) + temp;

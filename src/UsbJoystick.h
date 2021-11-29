@@ -24,7 +24,7 @@ static uchar reportBuffer[8];				/* buffer for HID reports */
 static uchar    idleRate;           // in 4 ms units 
 
 
-PROGMEM const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] = {  // USB report descriptor for a 6-axis, 4 button joystick
+PROGMEM const unsigned char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] = {  // USB report descriptor for a 6-axis, 4 button joystick
 0x05, 0x01,        // USAGE_PAGE (Generic Desktop)
 0x09, 0x04,        // USAGE (Joystick)
 0xa1, 0x01,        // COLLECTION (Application)
